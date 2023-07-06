@@ -3,18 +3,18 @@ name: Build
 on:
   workflow_call:
     inputs:
-      aws_region:
+      aws-region:
         description: 'AWS Region'
         default: 'eu-west-2'
         required: true
         type: string
 
-      aws_iam_role:
+      aws-iam-role:
         description: 'AWS IAM Role To Assume'
         required: true
         type: string
 
-      bump_version:
+      bump-version:
         description: 'Bump Tag Version'
         default: 'false'
         required: false
@@ -26,7 +26,7 @@ on:
         required: false
         type: string
 
-      docker_image:
+      docker-image:
         description: 'Docker Image Name'
         required: true
         type: string
@@ -57,8 +57,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-region: ${{ inputs.aws_region }}
-          role-to-assume: ${{ inputs.aws_iam_role }}
+          aws-region: ${{ inputs.aws-region }}
+          role-to-assume: ${{ inputs.aws-iam-role }}
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -75,7 +75,7 @@ jobs:
 
       - name: Choose Tag
         run: |
-          if [[ $(echo ${{ inputs.bump_version }} | grep -ci true) -eq 1 ]]
+          if [[ $(echo ${{ inputs.bump-version }} | grep -ci true) -eq 1 ]]
           then
             echo "DOCKER_TAG=${NEW_TAG}" >> $GITHUB_ENV
           else
@@ -96,4 +96,4 @@ jobs:
           push: true
           platforms: ${{ inputs.platforms }}
           provenance: false
-          tags: ${{ steps.login-ecr.outputs.registry }}/${{ inputs.docker_image }}:${{ env.DOCKER_TAG }}
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{ inputs.docker-image }}:${{ env.DOCKER_TAG }}
