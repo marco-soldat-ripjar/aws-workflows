@@ -1,0 +1,99 @@
+name: Build
+
+on:
+  workflow_call:
+    inputs:
+      aws_region:
+        description: 'AWS Region'
+        default: 'eu-west-2'
+        required: true
+        type: string
+
+      aws_iam_role:
+        description: 'AWS IAM Role To Assume'
+        required: true
+        type: string
+
+      bump_version:
+        description: 'Bump Tag Version'
+        default: 'false'
+        required: false
+        type: string
+
+      dockerfile:
+        description: 'Dockerfile'
+        default: './Dockerfile'
+        required: false
+        type: string
+
+      docker_image:
+        description: 'Docker Image Name'
+        required: true
+        type: string
+
+      platforms:
+        description: 'Docker Platforms'
+        default: 'linux/arm64'
+        required: false
+        type: string
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ inputs.aws_iam_role }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Generate tags
+        id: tag
+        uses: paulhatch/semantic-version@v5.0.2
+
+      - name: Set Tag Versions
+        run: |
+          echo "NEW_TAG=${{ steps.tag.outputs.version_tag }}-${{ github.run_id }}" >> $GITHUB_ENV
+          echo "CURRENT_TAG=v${{ steps.tag.outputs.previous_version }}-${{ github.run_id }}" >> $GITHUB_ENV
+
+      - name: Choose Tag
+        run: |
+          if [[ $(echo ${{ inputs.bump_version }} | grep -ci true) -eq 1 ]]
+          then
+            echo "DOCKER_TAG=${NEW_TAG}" >> $GITHUB_ENV
+          else
+            echo "DOCKER_TAG=${CURRENT_TAG}" >> $GITHUB_ENV
+          fi
+
+      - name: Environment Checks
+        run: |
+          echo NEW_TAG=${NEW_TAG}
+          echo CURRENT_TAG=${CURRENT_TAG}
+          echo DOCKER_TAG=${DOCKER_TAG}
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ${{ inputs.dockerfile }}
+          push: true
+          platforms: ${{ inputs.platforms }}
+          provenance: false
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{ inputs.docker_image }}:${{ env.DOCKER_TAG }}
