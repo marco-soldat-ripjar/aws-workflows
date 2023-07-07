@@ -65,7 +65,7 @@ jobs:
           then
             if [[ $(jq keys package.json | grep -c 'version') -eq 1 ]]
             then
-              echo "PACKAGE_VERSION=$(jq -r .version package.json)" >> $GITHUB_ENV
+              echo "PACKAGE_VERSION=$(jq -r .version package.json)-${{ github.run_id }}" >> $GITHUB_ENV
             fi
           fi
 
