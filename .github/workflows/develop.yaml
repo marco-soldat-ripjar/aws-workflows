@@ -14,12 +14,6 @@ on:
         required: true
         type: string
 
-      bump-version:
-        description: 'Bump Tag Version'
-        default: 'false'
-        required: false
-        type: string
-
       dockerfile:
         description: 'Dockerfile'
         default: './Dockerfile'
@@ -66,22 +60,28 @@ jobs:
 
       - name: Set Tag Versions
         run: |
-          echo "NEW_TAG=${{ steps.tag.outputs.version_tag }}-${{ github.run_id }}" >> $GITHUB_ENV
-          echo "CURRENT_TAG=v${{ steps.tag.outputs.previous_version }}-${{ github.run_id }}" >> $GITHUB_ENV
+          echo "GIT_CURRENT_TAG=v${{ steps.tag.outputs.previous_version }}-${{ github.run_id }}" >> $GITHUB_ENV
+          if [[ -f package.json ]]
+          then
+            if [[ $(jq keys package.json | grep -c 'version') -eq 1 ]]
+            then
+              echo "PACKAGE_VERSION=$(jq -r .version package.json)" >> $GITHUB_ENV
+            fi
+          fi
 
       - name: Choose Tag
         run: |
-          if [[ $(echo ${{ inputs.bump-version }} | grep -ci true) -eq 1 ]]
+          if [[ -z ${PACKAGE_VERSION} ]]
           then
-            echo "DOCKER_TAG=${NEW_TAG}" >> $GITHUB_ENV
+            echo "DOCKER_TAG=${GIT_CURRENT_TAG}" >> $GITHUB_ENV
           else
-            echo "DOCKER_TAG=${CURRENT_TAG}" >> $GITHUB_ENV
+            echo "DOCKER_TAG=${PACKAGE_VERSION}" >> $GITHUB_ENV
           fi
 
       - name: Environment Checks
         run: |
-          echo NEW_TAG=${NEW_TAG}
-          echo CURRENT_TAG=${CURRENT_TAG}
+          echo GIT_CURRENT_TAG=${GIT_CURRENT_TAG}
+          echo PACKAGE_VERSION=${PACKAGE_VERSION}
           echo DOCKER_TAG=${DOCKER_TAG}
 
       - name: Build Docker image
